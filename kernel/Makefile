@@ -41,6 +41,7 @@ UBSAN_SANITIZE_kcov.o := n
 KMSAN_SANITIZE_kcov.o := n
 CFLAGS_kcov.o := $(call cc-option, -fno-conserve-stack) -fno-stack-protector
 
+obj-y += dmce_mod/
 obj-y += sched/
 obj-y += locking/
 obj-y += power/

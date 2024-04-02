@@ -1,0 +1,1 @@
+obj-y += dmce_mod.o
