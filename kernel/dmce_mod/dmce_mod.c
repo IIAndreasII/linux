@@ -8,30 +8,21 @@
 #include <linux/atomic.h>
 #include <linux/printk.h>
 #include <asm/page.h>
+#include <linux/vmalloc.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 #define HAVE_PROC_OPS
 #endif
 
-#define PROCFS_MAX_SIZE (1024 * 8)
+#define PROCFS_MAX_SIZE (1024 * 1024 * 8)
 
 #define PROCFS_NAME "dmce_hmk"
-
-
-#define DMCE_ALLOC(size) (size < PAGE_SIZE ? kmalloc(size, GFP_KERNEL) : vmalloc(size))
-
-#define DMCE_FREE(size, ptr) do { \
-    if (size < PAGE_SIZE) \
-        kfree(ptr); \
-    else \
-        vfree(ptr); \
-} while(0);
 
 static struct proc_dir_entry *proc_file;
 
 static size_t procfs_buffer_size = 0;
 
-extern atomic64_t* dmce_buffer;
+extern atomic_t dmce_buffer[];
 extern int nbr_probes;
 
 atomic_t __attribute__((common)) dmce_buffer_allocated = ATOMIC_INIT(0);
@@ -45,21 +36,21 @@ static ssize_t proc_read(struct file *fp, char __user *buf, size_t buf_len, loff
         return 0;
     }
 
-    int* dmce_tmp_buffer = DMCE_ALLOC(sizeof(long long) * nbr_probes);
+    int* dmce_tmp_buffer = vmalloc(sizeof(atomic_t) * nbr_probes);
 
     for (size_t i = 0; i < nbr_probes; i++)
     {
-        dmce_tmp_buffer[i] = atomic64_fetch_add(0, &dmce_buffer[i]);
+        dmce_tmp_buffer[i] = atomic_fetch_add(0, &dmce_buffer[i]);
     }
 
-    procfs_buffer_size = min(sizeof(int) * nbr_probes, buf_len);
+    procfs_buffer_size = min(sizeof(atomic_t) * nbr_probes, buf_len);
 
     if (copy_to_user(buf + *offset, dmce_tmp_buffer + *offset, procfs_buffer_size))
     {
-        DMCE_FREE(sizeof(long long) * nbr_probes, dmce_tmp_buffer);
+        vfree(dmce_tmp_buffer);
         return -EFAULT;
     }
-    DMCE_FREE(sizeof(long long) * nbr_probes, dmce_tmp_buffer);
+    vfree(dmce_tmp_buffer);
 
 
     *offset += procfs_buffer_size;
