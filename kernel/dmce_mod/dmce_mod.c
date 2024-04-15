@@ -10,20 +10,28 @@
 #include <asm/page.h>
 #include <linux/vmalloc.h>
 
+#define DMCE_RACE_TRACK_K 1
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 #define HAVE_PROC_OPS
 #endif
 
 #define PROCFS_MAX_SIZE (1024 * 1024 * 8)
 
-#define PROCFS_NAME "dmce_hmk"
+#define PROCFS_NAME "dmce"
 
 static struct proc_dir_entry *proc_file;
 
 static size_t procfs_buffer_size = 0;
 
-extern atomic_t dmce_buffer[];
+#if DMCE_RACE_TRACK_K
+int nbr_probes;
+atomic_t dmce_buffer[1024];
+#else
 extern int nbr_probes;
+extern atomic_t dmce_buffer[];
+#endif
 
 atomic_t __attribute__((common)) dmce_buffer_allocated = ATOMIC_INIT(0);
 
